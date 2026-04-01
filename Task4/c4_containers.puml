@@ -1,0 +1,50 @@
+@startuml C4_Containers_Task4
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Диаграмма контейнеров C4 — Передача ставок в кол-центры
+
+Person(cc_operator, "Оператор кол-центра банка", "Консультирует клиентов по ставкам")
+Person(partner_operator, "Оператор партнёрского кол-центра", "Консультирует клиентов по ставкам")
+
+System_Boundary(abs_boundary, "АБС") {
+    ContainerDb(abs_db, "БД АБС", "Oracle, PL-SQL", "Ставки по депозитам, данные клиентов")
+    Container(abs_kafka_adapter, "Kafka-адаптер АБС", "Java", "Публикация обновлённых ставок в Kafka")
+}
+
+Container(kafka, "Apache Kafka", "Kafka", "Топик: deposit-rates")
+
+System_Boundary(deposit_boundary, "Сервис депозитов") {
+    Container(deposit_api, "API Сервиса депозитов", "Java Spring Boot", "Кэш ставок, обработка заявок")
+    ContainerDb(deposit_db, "БД Сервиса депозитов", "PostgreSQL", "Кэш ставок, заявки")
+    Container(kafka_consumer_ds, "Kafka Consumer ставок", "Java", "Получение ставок из Kafka")
+    Container(sftp_exporter, "SFTP-экспортёр", "Java", "Формирование CSV-файла и загрузка на SFTP-сервер")
+}
+
+System_Boundary(cc_boundary, "Система кол-центра банка") {
+    Container(cc_app, "Приложение кол-центра", "Java Spring Boot, React.js", "Интерфейс операторов, экран ставок")
+    ContainerDb(cc_db, "БД кол-центра", "PostgreSQL", "Обращения клиентов, ставки по депозитам")
+    Container(kafka_consumer_cc, "Kafka Consumer ставок", "Java", "Получение ставок из Kafka и сохранение в БД")
+}
+
+Container(sftp_server, "SFTP-сервер банка", "OpenSSH/SFTP", "Хранение файлов со ставками")
+
+System_Ext(partner_cc, "Система партнёрского кол-центра", "Внешняя система партнёра")
+
+Rel(abs_kafka_adapter, kafka, "Публикация ставок", "Kafka topic: deposit-rates")
+Rel(abs_kafka_adapter, abs_db, "Чтение ставок", "PL-SQL")
+
+Rel(kafka, kafka_consumer_ds, "Потребление ставок")
+Rel(kafka_consumer_ds, deposit_db, "Обновление кэша ставок", "SQL")
+
+Rel(kafka, kafka_consumer_cc, "Потребление ставок")
+Rel(kafka_consumer_cc, cc_db, "Сохранение ставок", "SQL")
+
+Rel(cc_operator, cc_app, "Просмотр актуальных ставок")
+Rel(cc_app, cc_db, "Чтение ставок", "SQL")
+
+Rel(sftp_exporter, deposit_db, "Чтение актуальных ставок", "SQL")
+Rel(sftp_exporter, sftp_server, "Загрузка CSV-файла", "SFTP")
+Rel(partner_cc, sftp_server, "Получение CSV-файла по расписанию", "SFTP")
+Rel(partner_operator, partner_cc, "Просмотр ставок из файла")
+
+@enduml
