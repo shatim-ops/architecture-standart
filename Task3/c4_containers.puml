@@ -1,0 +1,66 @@
+@startuml C4_Containers
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Диаграмма контейнеров C4 — Открытие депозитов онлайн (MVP)
+
+Person(existing_client, "Существующий клиент", "Открывает депозит через интернет-банк")
+Person(new_client, "Новый клиент", "Подаёт заявку через сайт")
+Person(back_office, "Менеджер бэк-офиса", "Обрабатывает заявки в АБС")
+
+System_Boundary(ib_boundary, "Интернет-банк") {
+    Container(ib_web, "Веб-приложение ИБ", "ASP.NET MVC 4.5, .NET Framework 4.5", "Монолит: платежи, счета, UI для депозитов")
+    ContainerDb(ib_db, "БД интернет-банка", "MS SQL", "Данные клиентов, счетов, платежей")
+}
+
+System_Boundary(deposit_boundary, "Сервис депозитов (новый)") {
+    Container(deposit_api, "API Сервиса депозитов", "Java Spring Boot", "Приём заявок, расчёт ставок, отправка СМС")
+    ContainerDb(deposit_db, "БД Сервиса депозитов", "PostgreSQL", "Заявки на депозиты, кэш ставок")
+    Container(kafka_producer, "Kafka Producer", "Java", "Отправка заявок в АБС")
+    Container(kafka_consumer, "Kafka Consumer", "Java", "Получение обновлённых ставок из АБС")
+}
+
+System_Boundary(abs_boundary, "АБС") {
+    Container(abs_client, "Десктопный клиент АБС", "Delphi", "Интерфейс для сотрудников бэк-офиса")
+    ContainerDb(abs_db, "БД АБС", "Oracle, PL-SQL", "Основные данные: клиенты, депозиты, кредиты, ставки")
+    Container(abs_kafka_adapter, "Kafka-адаптер АБС", "Java", "Получение заявок из Kafka, публикация ставок в Kafka")
+}
+
+Container(kafka, "Apache Kafka", "Kafka", "Брокер сообщений: очереди заявок и ставок")
+
+System_Boundary(site_boundary, "Сайт") {
+    Container(site_web, "Веб-приложение сайта", "PHP + React.js", "Маркетинговая информация, форма заявки на депозит")
+}
+
+System_Boundary(cc_boundary, "Система кол-центра") {
+    Container(cc_app, "Приложение кол-центра", "Java Spring Boot, React.js", "Обработка обращений клиентов")
+    ContainerDb(cc_db, "БД кол-центра", "PostgreSQL", "Данные обращений")
+}
+
+System_Ext(sms_gateway, "СМС-шлюз", "Отправка СМС через телеком-оператора")
+System_Ext(load_balancer, "Балансировщик нагрузки", "Распределение запросов между ЦОД")
+
+Rel(existing_client, load_balancer, "HTTPS")
+Rel(load_balancer, ib_web, "Маршрутизация запросов")
+Rel(ib_web, ib_db, "Чтение/запись", "SQL")
+Rel(ib_web, deposit_api, "Запрос ставок, подача заявки на депозит", "REST API / HTTPS")
+
+Rel(deposit_api, deposit_db, "Чтение/запись заявок и кэша ставок", "SQL")
+Rel(deposit_api, kafka_producer, "Отправка заявки")
+Rel(kafka_producer, kafka, "Публикация сообщения в топик заявок")
+Rel(kafka, abs_kafka_adapter, "Потребление заявок")
+Rel(abs_kafka_adapter, abs_db, "Запись заявки в АБС", "PL-SQL")
+
+Rel(abs_kafka_adapter, kafka, "Публикация обновлённых ставок")
+Rel(kafka, kafka_consumer, "Потребление ставок")
+Rel(kafka_consumer, deposit_db, "Обновление кэша ставок", "SQL")
+
+Rel(back_office, abs_client, "Обработка заявок, подтверждение депозитов")
+Rel(abs_client, abs_db, "Чтение/запись", "PL-SQL")
+
+Rel(deposit_api, sms_gateway, "Отправка СМС-уведомлений", "API")
+
+Rel(new_client, site_web, "Подаёт заявку", "HTTPS")
+Rel(site_web, cc_app, "Передача заявки", "REST API")
+Rel(cc_app, cc_db, "Чтение/запись", "SQL")
+
+@enduml
