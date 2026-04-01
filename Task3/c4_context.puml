@@ -1,0 +1,29 @@
+@startuml C4_Context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Диаграмма контекста C4 — Открытие депозитов онлайн (MVP)
+
+Person(new_client, "Новый клиент", "Подаёт заявку на депозит через сайт")
+Person(existing_client, "Существующий клиент", "Открывает депозит через интернет-банк")
+Person(back_office, "Менеджер бэк-офиса", "Обрабатывает заявки на депозиты в АБС")
+Person(call_center_op, "Оператор кол-центра", "Связывается с клиентом, предлагает условия")
+
+System(website, "Сайт", "PHP + React.js. Маркетинговая информация, подача заявок на депозит")
+System(internet_bank, "Интернет-банк", "ASP.NET MVC 4.5, MS SQL. Платежи, счета, подача заявок на депозит")
+System(deposit_service, "Сервис депозитов", "Java Spring Boot, PostgreSQL. Новый микросервис — обработка заявок, кэш ставок")
+System(abs, "АБС", "Delphi, Oracle, PL-SQL. Основная банковская система")
+System(call_center, "Система кол-центра", "Java Spring Boot, PostgreSQL. Обработка обращений клиентов")
+System_Ext(sms_gateway, "СМС-шлюз", "Отправка СМС через телеком-оператора")
+System_Ext(telecom, "Телеком-оператор", "Внешний оператор по отправке СМС")
+
+Rel(new_client, website, "Подаёт заявку на депозит", "HTTPS")
+Rel(existing_client, internet_bank, "Открывает депозит, просматривает ставки", "HTTPS")
+Rel(website, call_center, "Передаёт заявку", "REST API")
+Rel(call_center_op, call_center, "Обрабатывает заявки, звонит клиентам")
+Rel(internet_bank, deposit_service, "Запрос ставок, подача заявки", "REST API")
+Rel(deposit_service, abs, "Передача заявок, получение ставок", "Kafka")
+Rel(back_office, abs, "Обработка заявок, подтверждение депозитов")
+Rel(deposit_service, sms_gateway, "Отправка СМС-уведомлений", "API")
+Rel(sms_gateway, telecom, "Отправка СМС")
+
+@enduml
