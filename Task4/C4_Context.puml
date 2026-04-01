@@ -1,0 +1,28 @@
+@startuml C4_Context_Task4
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Диаграмма контекста C4 — Передача ставок в кол-центры
+
+Person(client, "Клиент банка", "Звонит в кол-центр для консультации по ставкам депозитов")
+Person(cc_operator, "Оператор кол-центра банка", "Консультирует клиентов по актуальным ставкам")
+Person(partner_operator, "Оператор партнёрского кол-центра", "Консультирует клиентов по актуальным ставкам")
+
+System(deposit_service, "Сервис депозитов", "Java Spring Boot. Кэш ставок, экспорт файлов на SFTP")
+System(abs, "АБС", "Delphi, Oracle. Источник ставок по депозитам")
+System(call_center, "Система кол-центра банка", "Java Spring Boot, PostgreSQL. Получает ставки из Kafka")
+System(kafka, "Apache Kafka", "Брокер сообщений: топик ставок по депозитам")
+System(sftp_server, "SFTP-сервер банка", "Хранение файлов со ставками для партнёра")
+System_Ext(partner_cc, "Система партнёрского кол-центра", "Внешняя система. Забирает файлы со ставками по SFTP")
+
+Rel(client, cc_operator, "Звонит для консультации")
+Rel(client, partner_operator, "Звонит для консультации")
+Rel(cc_operator, call_center, "Просматривает актуальные ставки")
+Rel(partner_operator, partner_cc, "Просматривает ставки из файла")
+
+Rel(abs, kafka, "Публикация обновлённых ставок", "Kafka")
+Rel(kafka, deposit_service, "Потребление ставок")
+Rel(kafka, call_center, "Потребление ставок")
+Rel(deposit_service, sftp_server, "Загрузка файла со ставками", "SFTP")
+Rel(partner_cc, sftp_server, "Получение файла со ставками", "SFTP")
+
+@enduml
